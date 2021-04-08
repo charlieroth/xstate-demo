@@ -1,3 +1,3 @@
-# react-tf
+# XState Demo
 
-React & TensorFlow
+Demo of solving a math exercise modeled using state machines

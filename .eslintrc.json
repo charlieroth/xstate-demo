@@ -16,10 +16,7 @@
             "version": "detect"
         }
     },
-    "extends": [
-        "plugin:react/recommended",
-        "airbnb-typescript"
-    ],
+    "extends": ["plugin:react/recommended"],
     "plugins": [
         "react",
         "@typescript-eslint"

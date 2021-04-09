@@ -15,7 +15,7 @@ function getRandomInt(min: number, max: number) {
 interface ExerciseMachineContext {
   problemMaxTries: number
   numProblems: number
-  currTries: number
+  currTry: number
   currProblem: number
   numProblemsCorrect: number
   numProblemsIncorrect: number
@@ -28,7 +28,7 @@ export const exerciseMachine = Machine<ExerciseMachineContext>(
     context: {
       problemMaxTries: 2,
       numProblems: 3,
-      currTries: 0,
+      currTry: 1,
       currProblem: 1,
       numProblemsCorrect: 0,
       numProblemsIncorrect: 0,
@@ -51,12 +51,12 @@ export const exerciseMachine = Machine<ExerciseMachineContext>(
             {
               cond: 'isCorrect',
               target: 'correct',
-              actions: ['recordTry', 'correctAnswer'],
+              actions: ['correctAnswer'],
             },
             {
               cond: 'isIncorrect',
               target: 'incorrect',
-              actions: ['recordTry', 'incorrectAnswer'],
+              actions: ['incorrectAnswer'],
             },
           ],
           EXIT: { target: 'map' },
@@ -105,7 +105,7 @@ export const exerciseMachine = Machine<ExerciseMachineContext>(
   {
     guards: {
       lastExercise: (c) => c.currProblem === c.numProblems,
-      showAnswer: (c) => c.currTries == c.problemMaxTries,
+      showAnswer: (c) => c.currTry == c.problemMaxTries,
       isCorrect: () => true,
       isIncorrect: () => true,
       continue: () => true,
@@ -113,19 +113,24 @@ export const exerciseMachine = Machine<ExerciseMachineContext>(
     actions: {
       correctAnswer: assign({
         numProblemsCorrect: (c) => c.numProblemsCorrect + 1,
+        currTry: (c) => c.currTry + 1,
       }),
       incorrectAnswer: assign({
-        numProblemsIncorrect: (c) => c.numProblemsIncorrect + 1,
+        numProblemsIncorrect: (c) =>
+          c.currTry + 1 === c.problemMaxTries ?
+            c.numProblemsIncorrect + 1
+            : c.numProblemsIncorrect,
+        currTry: (c) => c.currTry + 1,
       }),
       recordTry: assign({
-        currTries: (c) => c.currTries + 1,
+        currTry: (c) => c.currTry + 1,
       }),
       sendResults: assign((c) => {
-        alert('RESULTS SUBMITTED')
+        console.log('RESULTS SUBMITTED: ', Date.now(), c)
         return c
       }),
       newExercise: assign({
-        currTries: (c) => 0,
+        currTry: (c) => 1,
         currProblem: (c) => c.currProblem + 1,
       }),
     },

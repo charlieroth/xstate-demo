@@ -1,13 +1,10 @@
 import React from 'react'
 import ReactDOM from 'react-dom'
 import { Machine } from 'xstate'
+import { useMachine } from '@xstate/react'
 import { inspect } from '@xstate/inspect'
 
-inspect({
-  // options
-  // url: 'https://statecharts.io/inspect', // (default)
-  iframe: false, // open in new window
-})
+inspect({ url: 'https://statecharts.io/inspect', iframe: false })
 
 export const exerciseMachine = Machine(
   {
@@ -21,7 +18,7 @@ export const exerciseMachine = Machine(
       },
       thinking: {
         meta: { message: 'User is thinking of which choice is correct' },
-        on: { ANSWER: 'processing' },
+        on: { ANSWER: 'answered' },
       },
       answered: {
         initial: 'processing',
@@ -63,6 +60,7 @@ export const exerciseMachine = Machine(
 )
 
 function App() {
+  const [current, send] = useMachine(exerciseMachine, { devTools: true })
   return (
     <div>
       <h1>Hello world</h1>

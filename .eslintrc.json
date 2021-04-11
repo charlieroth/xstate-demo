@@ -5,23 +5,31 @@
     },
     "parser": "@typescript-eslint/parser",
     "parserOptions": {
+        "ecmaVersion": 12,
+        "sourceType": "module"
         "ecmaFeatures": {
             "jsx": true
         },
-        "ecmaVersion": 12,
-        "sourceType": "module"
     },
+    "extends": [
+      "plugin:react/recommended",
+      "plugin:@typescript-eslint/recommended"
+    ],
+    "plugins": [
+        "@typescript-eslint",
+        "react-hooks",
+        "react"
+    ],
     "settings": {
         "react": {
+            "pragma": "React",
             "version": "detect"
         }
     },
-    "extends": ["plugin:react/recommended"],
-    "plugins": [
-        "react",
-        "@typescript-eslint"
-    ],
     "rules": {
-        "react/jsx-filename-extension": [1, { "extensions": [".js", ".jsx", ".tsx"] }]
+        "react/jsx-filename-extension": [1, { "extensions": [".js", ".jsx", ".tsx"] }],
+        "react-hooks/rules-of-hooks": "error",
+        "react-hooks/exhaustive-deps": "warn",
+        "react/prop-types": "off",
     }
 }

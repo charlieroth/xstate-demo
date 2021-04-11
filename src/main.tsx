@@ -1,150 +1,138 @@
 import React from 'react'
 import ReactDOM from 'react-dom'
-import { Machine, assign } from 'xstate'
-import { useMachine } from '@xstate/react'
+import { ActorRefFrom } from 'xstate'
+import { useMachine, useService } from '@xstate/react'
 import { inspect } from '@xstate/inspect'
+import { appMachine } from './appMachine'
+import { ExerciseMachine } from './exerciseMachine'
+import { getLevels, getLevel, getExercise } from '../contentService'
 
-inspect({ url: 'https://statecharts.io/inspect', iframe: false })
+inspect({
+  url: 'https://statecharts.io/inspect'
+})
 
-function getRandomInt(min: number, max: number) {
-  min = Math.ceil(min)
-  max = Math.floor(max)
-  return Math.floor(Math.random() * (max - min) + min)
+
+interface ResultsViewProps {
+  qCorrect: number
+  qIncorrect: number
 }
-
-interface ExerciseMachineContext {
-  problemMaxTries: number
-  numProblems: number
-  currTry: number
-  currProblem: number
-  numProblemsCorrect: number
-  numProblemsIncorrect: number
-}
-
-export const exerciseMachine = Machine<ExerciseMachineContext>(
-  {
-    id: 'exercise-machine',
-    initial: 'map',
-    context: {
-      problemMaxTries: 2,
-      numProblems: 3,
-      currTry: 1,
-      currProblem: 1,
-      numProblemsCorrect: 0,
-      numProblemsIncorrect: 0,
-    },
-    states: {
-      map: {
-        meta: { message: 'User is on map page' },
-        on: { EXERCISE: 'displayExercise' },
-      },
-      displayExercise: {
-        meta: {},
-        after: {
-          1000: 'thinking',
-        },
-      },
-      thinking: {
-        meta: { message: 'User is thinking of which choice is correct' },
-        on: {
-          ANSWER: [
-            {
-              cond: 'isCorrect',
-              target: 'correct',
-              actions: ['correctAnswer'],
-            },
-            {
-              cond: 'isIncorrect',
-              target: 'incorrect',
-              actions: ['incorrectAnswer'],
-            },
-          ],
-          EXIT: { target: 'map' },
-        },
-      },
-      correct: {
-        meta: { message: "The user's answer was correct" },
-        on: {
-          '': [
-            {
-              cond: 'lastExercise',
-              actions: ['sendResults'],
-              target: 'map',
-            },
-            {
-              cond: 'continue',
-              actions: ['newExercise'],
-              target: 'displayExercise',
-            },
-          ],
-        },
-      },
-      incorrect: {
-        meta: { message: "The user's answer was incorrect" },
-        on: {
-          '': [
-            {
-              cond: 'showAnswer',
-              target: 'showAnswer',
-            },
-            {
-              cond: 'continue',
-              target: 'displayExercise',
-            },
-          ],
-        },
-      },
-      showAnswer: {
-        meta: {},
-        after: {
-          3000: 'displayExercise',
-        },
-      },
-    },
-  },
-  {
-    guards: {
-      lastExercise: (c) => c.currProblem === c.numProblems,
-      showAnswer: (c) => c.currTry == c.problemMaxTries,
-      isCorrect: () => true,
-      isIncorrect: () => true,
-      continue: () => true,
-    },
-    actions: {
-      correctAnswer: assign({
-        numProblemsCorrect: (c) => c.numProblemsCorrect + 1,
-        currTry: (c) => c.currTry + 1,
-      }),
-      incorrectAnswer: assign({
-        numProblemsIncorrect: (c) =>
-          c.currTry + 1 === c.problemMaxTries ?
-            c.numProblemsIncorrect + 1
-            : c.numProblemsIncorrect,
-        currTry: (c) => c.currTry + 1,
-      }),
-      recordTry: assign({
-        currTry: (c) => c.currTry + 1,
-      }),
-      sendResults: assign((c) => {
-        console.log('RESULTS SUBMITTED: ', Date.now(), c)
-        return c
-      }),
-      newExercise: assign({
-        currTry: (c) => 1,
-        currProblem: (c) => c.currProblem + 1,
-      }),
-    },
-  },
-)
-
-function App() {
-  const [current, send] = useMachine(exerciseMachine, { devTools: true })
+const ResultsView: React.FC<ResultsViewProps> = ({ qCorrect, qIncorrect }) => {
   return (
-    <div>
-      <h1>Hello world</h1>
+    <div className="results-container">
+      <h3 className="results-title">Results</h3>
+      <p className="results-info">Questions Correct: {qCorrect}</p>
+      <p className="results-info">Querstions Incorrect: {qIncorrect}</p>
     </div>
   )
 }
+
+interface ExerciseViewProps {
+  service: ActorRefFrom<ExerciseMachine>
+}
+const ExerciseView: React.FC<ExerciseViewProps> = ({ service }) => {
+  const [current, send] = useService(service)
+  const {
+    qCorrect,
+    qIncorrect,
+    tries,
+    maxTries,
+    currQ,
+    numQ
+  } = current.context
+
+  const handleAnswerClicked = (correct: boolean): void => {
+    send({ type: 'ANSWER', correct: correct })
+  }
+
+  const exitExercise = (): void => {
+    send({ type: 'EXIT' })
+  }
+
+  if (current.matches('results')) {
+    return <ResultsView qCorrect={qCorrect} qIncorrect={qIncorrect} />
+  }
+
+  return (
+    <div className="exercise-container">
+      <h3 className="question-title">Will you answer the question correctly?</h3>
+      <button className="question-btn" onClick={() => handleAnswerClicked(true)}>Yes</button>
+      <button className="question-btn" onClick={() => handleAnswerClicked(false)}>No</button>
+      <button className="question-btn" onClick={() => exitExercise()}>Exit</button>
+      <div className="question-info-container">
+        <p className="question-info" >Tries: {tries} / {maxTries}</p>
+        <p className="question-info" >Question: {currQ} / {numQ}</p>
+      </div>
+    </div>
+  )
+}
+
+interface LevelMapViewProps {
+  levelId: number
+  enterExercise: (exerciseId: number) => void
+  exitLevel: () => void
+}
+const LevelMapView: React.FC<LevelMapViewProps> = ({ levelId, enterExercise, exitLevel }) => {
+  const exercises = getLevel(levelId).exercises.map((exerciseId) => getExercise(exerciseId))
+  return (
+    <div className="map-view-container">
+      <h3 className="map-view-title">Level Map</h3>
+      <button className="map-view-btn" onClick={exitLevel}>Exit</button>
+      {exercises.map((e) => (
+        <button className="map-view-btn" onClick={() => enterExercise(e.id)}>{e.title}</button>
+      ))}
+    </div>
+  )
+}
+
+
+interface HomeViewProps {
+  enterLevel: (levelId: number) => void
+}
+const HomeView: React.FC<HomeViewProps> = ({ enterLevel }) => {
+  const levels = Object.values(getLevels())
+
+  return (
+    <div className="home-view-container">
+      <h3 className="home-view-title">Home</h3>
+      {levels.map((level) => (
+        <button className="enter-level-btn" onClick={() => enterLevel(level.id)}>{level.title}</button>
+      ))}
+    </div>
+  )
+}
+
+
+const App: React.FC = () => {
+  const [current, send] = useMachine(appMachine, { devTools: true })
+  const { exerciseActorRef, levelId } = current.context
+
+  const enterExercise = (exerciseId: number): void => {
+    send({ type: 'ENTER_EXERCISE', exerciseId: exerciseId })
+  }
+
+  const enterLevel = (levelId: number): void => {
+    send({ type: 'ENTER_LEVEL', levelId: levelId })
+  }
+  
+  const exitLevel = (): void => {
+    send({ type: 'EXIT_LEVEL'})
+  }
+
+  return (
+    <>
+        {current.matches('home') && (
+          <HomeView enterLevel={enterLevel} />
+        )}
+        {current.matches('level') && (
+          <LevelMapView exitLevel={exitLevel} enterExercise={enterExercise} levelId={levelId || 0} />
+        )}
+        {current.matches('learning') && (
+          <ExerciseView service={exerciseActorRef} />
+        )}
+    </>
+  )
+}
+
 
 ReactDOM.render(
   <React.StrictMode>

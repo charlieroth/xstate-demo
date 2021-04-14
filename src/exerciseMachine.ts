@@ -1,4 +1,4 @@
-import { Machine, StateMachine, assign, sendParent } from 'xstate'
+import { Machine, StateMachine, assign, sendParent, ActorRefFrom } from 'xstate'
 
 export interface ExerciseStateSchema {
   states: {
@@ -9,10 +9,7 @@ export interface ExerciseStateSchema {
   }
 }
 
-export type ExerciseEvent = 
-  | { type: 'ANSWER'; correct: boolean }
-  | { type: 'ENTER'; }
-  | { type: 'EXIT'; }
+export type ExerciseEvent = { type: 'ANSWER'; correct: boolean } | { type: 'ENTER' } | { type: 'EXIT' }
 
 export interface ExerciseContext {
   title: string
@@ -26,12 +23,14 @@ export interface ExerciseContext {
 }
 
 export interface ExerciseConfig {
-  title: string;
-  maxTries: number;
-  numQ: number;
+  title: string
+  maxTries: number
+  numQ: number
 }
 
 export type ExerciseMachine = StateMachine<ExerciseContext, ExerciseStateSchema, ExerciseEvent>
+
+export type ExerciseActor = ActorRefFrom<ExerciseMachine>
 
 export const createExerciseMachine = (config: ExerciseConfig): ExerciseMachine => {
   return Machine<ExerciseContext, ExerciseStateSchema, ExerciseEvent>(
@@ -50,6 +49,9 @@ export const createExerciseMachine = (config: ExerciseConfig): ExerciseMachine =
       },
       states: {
         learning: {
+          meta: {
+            message: 'The child is trying to answer the question',
+          },
           on: {
             ANSWER: {
               actions: assign({
@@ -58,59 +60,59 @@ export const createExerciseMachine = (config: ExerciseConfig): ExerciseMachine =
               target: 'next',
             },
             EXIT: {
-              target: 'done'
-            }
+              target: 'done',
+            },
           },
         },
         next: {
           always: [
-              {
-                id: 'lastQIncorrectNoMoreTries',
-                cond: 'lastQIncorrectNoMoreTries',
-                actions: ['lastQIncorrectNoMoreTries'],
-                target: 'results',
-              },
-              {
-                id: 'lastQIncorrectMoreTries',
-                cond: 'lastQIncorrectMoreTries',
-                actions: ['lastQIncorrectMoreTries'],
-                target: 'learning',
-              },
-              {
-                id: 'incorrectNoMoreTries',
-                cond: 'incorrectNoMoreTries',
-                actions: ['incorrectNoMoreTries'],
-                target: 'learning',
-              },
-              {
-                id: 'incorrectMoreTries',
-                cond: 'incorrectMoreTries',
-                actions: ['incorrectMoreTries'],
-                target: 'learning',
-              },
-              {
-                id: 'lastQCorrect',
-                cond: 'lastQCorrect',
-                actions: ['lastQCorrect'],
-                target: 'results',
-              },
-              {
-                id: 'correct',
-                cond: 'correct',
-                actions: ['correct'],
-                target: 'learning',
-              },
-           ],
+            {
+              id: 'lastQIncorrectNoMoreTries',
+              cond: 'lastQIncorrectNoMoreTries',
+              actions: ['lastQIncorrectNoMoreTries'],
+              target: 'results',
+            },
+            {
+              id: 'lastQIncorrectMoreTries',
+              cond: 'lastQIncorrectMoreTries',
+              actions: ['lastQIncorrectMoreTries'],
+              target: 'learning',
+            },
+            {
+              id: 'incorrectNoMoreTries',
+              cond: 'incorrectNoMoreTries',
+              actions: ['incorrectNoMoreTries'],
+              target: 'learning',
+            },
+            {
+              id: 'incorrectMoreTries',
+              cond: 'incorrectMoreTries',
+              actions: ['incorrectMoreTries'],
+              target: 'learning',
+            },
+            {
+              id: 'lastQCorrect',
+              cond: 'lastQCorrect',
+              actions: ['lastQCorrect'],
+              target: 'results',
+            },
+            {
+              id: 'correct',
+              cond: 'correct',
+              actions: ['correct'],
+              target: 'learning',
+            },
+          ],
         },
         results: {
           after: {
             3000: 'done',
           },
-          exit: 'reset'
+          exit: 'reset',
         },
         done: {
           entry: sendParent('EXIT_EXERCISE'),
-        }
+        },
       },
     },
     {
@@ -145,7 +147,7 @@ export const createExerciseMachine = (config: ExerciseConfig): ExerciseMachine =
           tries: (_) => 1,
           currQ: (c) => c.currQ + 1,
           qIncorrect: (c) => c.qIncorrect + 1,
-          currQCorrect: (_) => false
+          currQCorrect: (_) => false,
         }),
         incorrectMoreTries: assign({
           tries: (c) => c.tries + 1,
@@ -154,7 +156,7 @@ export const createExerciseMachine = (config: ExerciseConfig): ExerciseMachine =
           tries: (_) => 1,
           currQ: (c) => c.currQ + 1,
           qCorrect: (c) => c.qCorrect + 1,
-          currQCorrect: (_) => false
+          currQCorrect: (_) => false,
         }),
         lastQCorrect: assign({
           qCorrect: (c) => c.qCorrect + 1,
@@ -165,7 +167,7 @@ export const createExerciseMachine = (config: ExerciseConfig): ExerciseMachine =
           currQ: (_) => 1,
           qCorrect: (_) => 0,
           qIncorrect: (_) => 0,
-        })
+        }),
       },
       activities: {},
       delays: {},

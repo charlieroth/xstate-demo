@@ -1,3 +1,3 @@
 # XState Demo
 
-Demo of solving a math exercise modeled using state machines
+Using state machines to model a simplified, partial, user flow for [Albert Junior](https://hejalbert.se/junior)
